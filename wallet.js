@@ -47,8 +47,46 @@ function log(line) {
 
 async function ensureEthereum() {
   if (!window.ethereum) {
-    throw new Error("MetaMask not found. Please install MetaMask extension.");
+    showMetaMaskModal();
+    throw new Error("MetaMask not installed");
   }
+}
+
+function showMetaMaskModal() {
+  const modal = document.createElement('div');
+  modal.className = 'error-modal';
+  modal.innerHTML = `
+    <div class="error-modal__overlay"></div>
+    <div class="error-modal__panel">
+      <div class="error-modal__icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </div>
+      <h3 class="error-modal__title">MetaMask Not Found</h3>
+      <p class="error-modal__message">Please install MetaMask to connect your wallet and mint NFTs.</p>
+      <div class="error-modal__actions">
+        <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" class="error-modal__btn error-modal__btn--primary">
+          Install MetaMask
+        </a>
+        <button class="error-modal__btn error-modal__btn--secondary" type="button">Close</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const closeBtn = modal.querySelector('.error-modal__btn--secondary');
+  const overlay = modal.querySelector('.error-modal__overlay');
+  
+  const close = () => modal.remove();
+  
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', close);
+  
+  requestAnimationFrame(() => modal.classList.add('show'));
 }
 
 async function getChainId() {
@@ -84,7 +122,16 @@ async function switchOrAddChain() {
 }
 
 async function refreshAccountAndNetwork() {
-  await ensureEthereum();
+  // MetaMask 없으면 조용히 종료
+  if (!window.ethereum) {
+    state.provider = null;
+    state.signer = null;
+    state.address = null;
+    state.connected = false;
+    state.isCorrectNetwork = false;
+    emit();
+    return;
+  }
 
   const provider = new ethers.BrowserProvider(window.ethereum, "any");
   const chainId = await getChainId();
@@ -169,20 +216,16 @@ export async function initWalletUI() {
       }
     });
   }
-
-  // 🔥 모바일 Disconnect 버튼
-  const disconnectMobileBtn = $id("disconnectMobileBtn");
-  if (disconnectMobileBtn) {
-    disconnectMobileBtn.addEventListener("click", () => {
-      disconnectWallet();
-    });
-  }
-
+  // MetaMask 없어도 진행 (에러 무시)
   try {
-    await refreshAccountAndNetwork();
-    renderWalletButton();
-  } catch {
+    if (window.ethereum) {
+      await refreshAccountAndNetwork();
+    }
+  } catch (e) {
+    console.log("Wallet not connected");
   }
+  renderWalletButton();
+
 
   if (window.ethereum?.on) {
     window.ethereum.on("accountsChanged", async () => {
@@ -206,11 +249,6 @@ export async function initWalletUI() {
       closeDropdown();
     }
   });
-  try {
-    await refreshAccountAndNetwork();
-  } catch (e) {
-  }
-  renderWalletButton();
 
 }
 
