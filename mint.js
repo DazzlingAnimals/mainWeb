@@ -516,14 +516,14 @@ function renderMintButton() {
 
 function renderMintStatusBox() {
   if (!lastTotals) {
-    setHTML("mintStatusBox", "");
+    // 데이터 없으면 현재 상태 유지 (로딩 UI 또는 빈 상태)
     return;
   }
 
   const isWhitelist = mintPhase === "whitelist";
   const st = getPhaseStatus();
   if (!st) {
-    setHTML("mintStatusBox", "");
+    // 상태 없으면 현재 상태 유지
     return;
   }
 
@@ -863,5 +863,3 @@ export async function initMint() {
     }, 15000);
   }
 }
-
-initMint().catch((e) => console.error("initMint failed:", normalizeEvmError(e)));
