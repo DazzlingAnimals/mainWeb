@@ -11,8 +11,8 @@ const APP_STATE = {
 };
 
 const TIMEOUTS = {
-  walletInit: 10000,      // 10초
-  contractInit: 15000,    // 15초
+  walletInit: 5000,       // 5초
+  contractInit: 12000,    // 12초 (8초→12초)
   rpcCall: 8000           // 8초
 };
 
@@ -55,7 +55,7 @@ function updateLoadingUI(message, isError = false) {
 // 초기화 재시도
 window.retryInitialization = async function() {
   if (APP_STATE.retryCount >= APP_STATE.maxRetries) {
-    updateLoadingUI('⚠️ Maximum retry attempts reached. Please refresh the page.', true);
+    updateLoadingUI('⚠️ Maximum retry attempts reached. Please refresh the page and make sure your browser has a Web3 wallet.', true);
     return;
   }
   
@@ -83,7 +83,7 @@ export async function initializeApp() {
     console.log('✅ Contract configuration verified');
     
     // 2단계: Mint 초기화 (wallet + UI 포함)
-    updateLoadingUI('🎨 Initializing application...');
+    updateLoadingUI('Make sure your browser has a Web3 wallet. <br> Loading contract data...');
     const { initMint } = await import('./mint.js');
     
     await withTimeout(
