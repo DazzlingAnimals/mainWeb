@@ -22,6 +22,7 @@
       </div>
 
       <div class="nav__links" aria-label="Primary">
+        <a href="#mint" class="nav__link">MINT</a>
         <a href="#story" class="nav__link">Story</a>
         <a href="#collection" class="nav__link">Collection</a>
         <a href="#roadmap" class="nav__link">Roadmap</a>
@@ -53,6 +54,7 @@
 
     <div id="mobileMenu" class="mobileMenu hidden" aria-label="Mobile menu">
       <div class="container mobileMenu__inner">
+        <a href="#mint" class="nav__link">MINT</a>
         <a href="#story" class="mobileMenu__link">Story</a>
         <a href="#collection" class="mobileMenu__link">Collection</a>
         <a href="#roadmap" class="mobileMenu__link">Roadmap</a>
@@ -109,7 +111,7 @@
           </div>
         </section>
 
-        <div class="paletteWrap">
+        <div class="paletteWrap" id="mint">
           <div id="paletteStrip" class="palette" aria-label="Color palette strip"></div>
           <p class="paletteNote">* Background color will be random from above</p>
         </div>
@@ -171,7 +173,7 @@
                 <span id="totalCostLabel" class="mint__totalValue">...</span>
               </div>
 
-              <button id="mintBtn" class="mint__mintBtn" type="button" onclick="location.reload()" style="opacity:1;cursor:pointer;background:#667eea;">
+              <button id="mintBtn" class="mint__mintBtn" type="button" style="opacity:1;cursor:pointer;background:#667eea;" disabled>
                 <span style="display:flex;align-items:center;justify-content:center;gap:8px;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="23 4 23 10 17 10"></polyline>
