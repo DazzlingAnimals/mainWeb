@@ -829,14 +829,19 @@ function bindUI() {
 
 export async function initMint() {
   try {
+    // 1. 지갑 UI 초기화
     await initWalletUI();
+    
+    // 2. 첫 데이터 로딩 (UI 바인딩 전에)
+    await refreshAndRender();
+    
+    // 3. UI 이벤트 바인딩
     bindUI();
 
+    // 4. 지갑 상태 변경 리스너
     onWalletStateChange(async () => {
       await refreshAndRender();
     });
-
-    await refreshAndRender();
 
     setInterval(async () => {
       if (document.hidden) {
@@ -863,3 +868,6 @@ export async function initMint() {
     }, 15000);
   }
 }
+
+
+// app.js가 관리하므로 자동 실행 제거
