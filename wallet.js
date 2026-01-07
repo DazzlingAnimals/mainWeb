@@ -122,7 +122,6 @@ async function switchOrAddChain() {
 }
 
 async function refreshAccountAndNetwork() {
-  // MetaMask 없으면 조용히 종료
   if (!window.ethereum) {
     state.provider = null;
     state.signer = null;
@@ -170,9 +169,12 @@ export async function initWalletUI() {
   const btn = $id("connectBtn");
   const mobileBtn = $id("walletMobileBtn");
   
-  // 데스크톱 버튼
-  if (btn) {
+  // ✅ connect 버튼 리스너 중복 방지
+  if (btn && !btn.dataset.walletBound) {
+    btn.dataset.walletBound = "1";
+
     btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       if (!state.connected) {
         try {
           await connectWallet();
@@ -185,7 +187,6 @@ export async function initWalletUI() {
     });
   }
 
-  // 🔥 모바일 버튼
   if (mobileBtn) {
     mobileBtn.addEventListener("click", async (e) => {
       if (!state.connected) {
@@ -198,7 +199,6 @@ export async function initWalletUI() {
     });
   }
 
-  // 🔥 모바일 Copy 버튼
   const copyMobileBtn = $id("copyMobileBtn");
   if (copyMobileBtn) {
     copyMobileBtn.addEventListener("click", async () => {
@@ -216,7 +216,14 @@ export async function initWalletUI() {
       }
     });
   }
-  // MetaMask 없어도 진행 (에러 무시)
+
+  const disconnectMobileBtn = $id("disconnectMobileBtn");
+  if (disconnectMobileBtn) {
+    disconnectMobileBtn.addEventListener("click", () => {
+      disconnectWallet();
+    });
+  }
+
   try {
     if (window.ethereum) {
       await refreshAccountAndNetwork();
@@ -225,7 +232,6 @@ export async function initWalletUI() {
     console.log("Wallet not connected");
   }
   renderWalletButton();
-
 
   if (window.ethereum?.on) {
     window.ethereum.on("accountsChanged", async () => {
@@ -249,7 +255,6 @@ export async function initWalletUI() {
       closeDropdown();
     }
   });
-
 }
 
 export async function connectWallet() {
@@ -303,7 +308,6 @@ async function renderWalletButton() {
   
   if (!btn) return;
 
-  // 🔥 데스크톱 UI 업데이트
   if (!connected) {
     btn.innerHTML = `
       <span class="nav__walletBtnIcon" aria-hidden="true">
@@ -371,7 +375,6 @@ async function renderWalletButton() {
     }
   }
 
-  // 🔥 모바일 UI 업데이트 (미연결 시)
   if (!connected) {
     updateMobileWallet(null, null, null);
   }
@@ -381,7 +384,6 @@ async function renderWalletButton() {
   }
 }
 
-// 🔥 모바일 지갑 UI 업데이트 함수
 function updateMobileWallet(address, balance, chainId) {
   const mobileBtn = $id("walletMobileBtn");
   const mobileInfo = $id("walletMobileInfo");
@@ -389,7 +391,6 @@ function updateMobileWallet(address, balance, chainId) {
   if (!mobileBtn || !mobileInfo) return;
   
   if (!address) {
-    // 미연결 상태
     mobileBtn.classList.remove("hidden");
     mobileInfo.classList.add("hidden");
     mobileBtn.innerHTML = `
@@ -399,7 +400,6 @@ function updateMobileWallet(address, balance, chainId) {
       <span class="mobileMenu__walletText">Connect Wallet</span>
     `;
   } else {
-    // 연결 상태
     mobileBtn.classList.add("hidden");
     mobileInfo.classList.remove("hidden");
     
@@ -449,9 +449,15 @@ function updateDropdown(address, chainId) {
     </button>
   `;
   
+  // 드롭다운 자체 클릭 시 이벤트 버블링 방지
+  dropdown.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+  
   const copyBtn = dropdown.querySelector("#copyAddressBtn");
   if (copyBtn) {
-    copyBtn.addEventListener("click", async () => {
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       try {
         await navigator.clipboard.writeText(address);
         const span = copyBtn.querySelector("span");
@@ -468,7 +474,8 @@ function updateDropdown(address, chainId) {
   
   const disconnectBtn = dropdown.querySelector("#disconnectBtn");
   if (disconnectBtn) {
-    disconnectBtn.addEventListener("click", () => {
+    disconnectBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       disconnectWallet();
       closeDropdown();
     });
