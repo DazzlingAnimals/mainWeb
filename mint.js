@@ -28,6 +28,7 @@ let lastLimits = null;
 let previousEpoch = 0;
 let whitelistCheckStatus = "unchecked";
 let isMinting = false;
+let isUIBound = false;
 
 
 const READ_PROVIDER = new ethers.JsonRpcProvider(
@@ -459,7 +460,6 @@ function renderMintButton() {
   
   const whitelistOk = !isWhitelist || (st?.isWhitelisted === true);
   
-  // 🔥 유저 remaining과 전체 remaining 둘 다 체크
   const userRemaining = isWhitelist
     ? Number(st?.userRemainingWhitelist ?? 0)
     : Number(st?.userRemainingPublic ?? 0);
@@ -516,14 +516,12 @@ function renderMintButton() {
 
 function renderMintStatusBox() {
   if (!lastTotals) {
-    // 데이터 없으면 현재 상태 유지 (로딩 UI 또는 빈 상태)
     return;
   }
 
   const isWhitelist = mintPhase === "whitelist";
   const st = getPhaseStatus();
   if (!st) {
-    // 상태 없으면 현재 상태 유지
     return;
   }
 
@@ -704,24 +702,22 @@ async function doMint() {
 
 let retryCount = 0;
 let isFirstLoadSuccess = false;
-let backoffDelay = 2000; // 시작 대기 시간 2초
+let backoffDelay = 2000;
 
 async function refreshAndRender() {
   try {
     await fetchAllStatuses();
     await fullRender();
     
-    // 첫 성공
     if (!isFirstLoadSuccess) {
       isFirstLoadSuccess = true;
       console.log("✅ First load successful");
     }
     retryCount = 0;
-    backoffDelay = 2000; // 성공하면 백오프 리셋
+    backoffDelay = 2000;
   } catch (e) {
     console.error("Refresh failed:", normalizeEvmError(e));
     
-    // 첫 로드가 아직 성공 안했으면 재시도 표시
     if (!isFirstLoadSuccess) {
       retryCount++;
       
@@ -751,94 +747,122 @@ async function refreshAndRender() {
       
       setText("mintFootnote", `Auto retry in ${Math.ceil(backoffDelay/1000)}s or click Refresh`);
       
-      // 백오프: 실패할수록 대기 시간 증가 (최대 30초)
       setTimeout(() => refreshAndRender(), backoffDelay);
       backoffDelay = Math.min(backoffDelay * 1.5, 30000);
     }
   }
 }
 
+const handleTabWhitelistClick = async () => {
+  mintPhase = "whitelist";
+  mintAmount = 1;
+  whitelistCheckStatus = "unchecked";
+  await refreshAndRender();
+};
+
+const handleTabPublicClick = async () => {
+  mintPhase = "public";
+  mintAmount = 1;
+  await refreshAndRender();
+};
+
+const handleMinusClick = async () => {
+  mintAmount = clamp(mintAmount - 1, 1, computeMintAmountUpperBound());
+  await fullRender();
+};
+
+const handlePlusClick = async () => {
+  mintAmount = clamp(mintAmount + 1, 1, computeMintAmountUpperBound());
+  await fullRender();
+};
+
+const handleMintBtnClick = async () => {
+  const ws = getWalletState();
+  
+  if (!ws.connected) {
+    try {
+      await connectWallet();
+    } catch (e) {
+      console.error("Wallet connection failed:", e);
+      showErrorModal("Connection Failed", "Failed to connect wallet. Please try again.");
+    }
+    return;
+  }
+  
+  if (ws.connected && ws.isCorrectNetwork === false) {
+    try {
+      await connectWallet();
+    } catch (e) {
+      showErrorModal("Wrong Network", "Please switch to the correct network and try again.");
+    }
+    return;
+  }
+
+  if (isMinting) return;
+  
+  isMinting = true;
+  await fullRender();
+  
+  try {
+    await doMint();
+  } catch (e) {
+    const friendlyMsg = getUserFriendlyError(e);
+    showErrorModal("Mint Failed", friendlyMsg);
+  } finally {
+    isMinting = false;
+    await fullRender();
+  }
+};
+
 function bindUI() {
+  if (isUIBound) {
+    console.log("⚠️ UI already bound, skipping duplicate binding");
+    return;
+  }
+
   const tabWl = $id("tabWhitelist");
   const tabPb = $id("tabPublic");
   const minus = $id("mintMinus");
   const plus = $id("mintPlus");
   const mintBtn = $id("mintBtn");
 
-  if (tabWl) tabWl.addEventListener("click", async () => {
-    mintPhase = "whitelist";
-    mintAmount = 1;
-    whitelistCheckStatus = "unchecked";
-    await refreshAndRender();
-  });
+  if (tabWl) {
+    tabWl.removeEventListener("click", handleTabWhitelistClick);
+    tabWl.addEventListener("click", handleTabWhitelistClick);
+  }
   
-  if (tabPb) tabPb.addEventListener("click", async () => {
-    mintPhase = "public";
-    mintAmount = 1;
-    await refreshAndRender();
-  });
+  if (tabPb) {
+    tabPb.removeEventListener("click", handleTabPublicClick);
+    tabPb.addEventListener("click", handleTabPublicClick);
+  }
 
-  if (minus) minus.addEventListener("click", async () => {
-    mintAmount = clamp(mintAmount - 1, 1, computeMintAmountUpperBound());
-    await fullRender();
-  });
+  if (minus) {
+    minus.removeEventListener("click", handleMinusClick);
+    minus.addEventListener("click", handleMinusClick);
+  }
 
-  if (plus) plus.addEventListener("click", async () => {
-    mintAmount = clamp(mintAmount + 1, 1, computeMintAmountUpperBound());
-    await fullRender();
-  });
+  if (plus) {
+    plus.removeEventListener("click", handlePlusClick);
+    plus.addEventListener("click", handlePlusClick);
+  }
 
-  if (mintBtn) mintBtn.addEventListener("click", async () => {
-    const ws = getWalletState();
-    
-    if (!ws.connected) {
-      try {
-        await connectWallet();
-      } catch (e) {
-        console.error("Wallet connection failed:", e);
-        showErrorModal("Connection Failed", "Failed to connect wallet. Please try again.");
-      }
-      return;
-    }
-    
-    if (ws.connected && ws.isCorrectNetwork === false) {
-      try {
-        await connectWallet();
-      } catch (e) {
-        showErrorModal("Wrong Network", "Please switch to the correct network and try again.");
-      }
-      return;
-    }
+  if (mintBtn) {
+    mintBtn.removeEventListener("click", handleMintBtnClick);
+    mintBtn.addEventListener("click", handleMintBtnClick);
+  }
 
-    if (isMinting) return;
-    
-    isMinting = true;
-    await fullRender();
-    
-    try {
-      await doMint();
-    } catch (e) {
-      const friendlyMsg = getUserFriendlyError(e);
-      showErrorModal("Mint Failed", friendlyMsg);
-    } finally {
-      isMinting = false;
-      await fullRender();
-    }
-  });
+  isUIBound = true;
+  console.log("✅ UI bound successfully");
 }
 
 export async function initMint() {
   try {
-    // 1. 지갑 UI 초기화
     await initWalletUI();
     
-    // 2. 첫 데이터 로딩 (UI 바인딩 전에)
     await refreshAndRender();
     
-    // 3. UI 이벤트 바인딩
     bindUI();
 
-    // 4. 지갑 상태 변경 리스너
     onWalletStateChange(async () => {
       await refreshAndRender();
     });
@@ -868,6 +892,3 @@ export async function initMint() {
     }, 15000);
   }
 }
-
-
-// app.js가 관리하므로 자동 실행 제거
