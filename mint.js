@@ -376,24 +376,49 @@ function renderPriceAndTotal() {
 }
 
 function renderProgress() {
-  const bar = $id("mintProgressBar");
-  const label = $id("totalMintedLabel");
+  // ✅ 첫 번째 진행바: Total Minted (MAX_SUPPLY 기준)
+  const totalBar = $id("mintProgressBar");
+  const totalLabel = $id("totalMintedLabel");
+
+  // ✅ 두 번째 진행바: Round X Minted (현재 라운드 기준)
+  const roundBar = $id("roundProgressBar");
+  const roundLabel = $id("roundMintedLabel");
+  const roundTitle = $id("roundProgressTitle");
 
   if (!lastTotals) {
-    if (label) label.innerHTML = "<b>0</b> / 0";
-    if (bar) bar.style.width = "0%";
+    if (totalLabel) totalLabel.innerHTML = "<b>0</b> / 0";
+    if (totalBar) totalBar.style.width = "0%";
+    if (roundLabel) roundLabel.innerHTML = "<b>-</b>";
+    if (roundBar) roundBar.style.width = "0%";
+    if (roundTitle) roundTitle.textContent = "Not Started";
     return;
   }
 
   const minted = Number(lastTotals.totalMinted);
-  const endId = Number(lastTotals.saleEndTokenId);
   const max = Number(lastTotals.maxSupply);
+  const endId = Number(lastTotals.saleEndTokenId);
+  const currentEpoch = Number(lastTotals.currentEpoch || 0);
 
-  const displayMax = endId > 0 ? endId : max;
-  const pct = displayMax > 0 ? toPercent(BigInt(minted), BigInt(displayMax)) : 0;
+  // ✅ Total Minted: maxSupply 기준
+  const totalPct = max > 0 ? toPercent(BigInt(minted), BigInt(max)) : 0;
+  if (totalLabel) totalLabel.innerHTML = `<b>${minted}</b> / ${max}`;
+  if (totalBar) totalBar.style.width = `${totalPct}%`;
 
-  if (label) label.innerHTML = `<b>${minted}</b> / ${displayMax}`;
-  if (bar) bar.style.width = `${pct}%`;
+  // ✅ Epoch 0 처리: Round Not Started
+  if (currentEpoch === 0) {
+    if (roundTitle) roundTitle.textContent = "Not Started";
+    if (roundLabel) roundLabel.innerHTML = "<b>-</b>";
+    if (roundBar) roundBar.style.width = "0%";
+    return;
+  }
+
+  // ✅ Round X Minted: saleEndTokenId 기준
+  const roundAmount = endId > 0 ? endId : 0;
+  const roundPct = roundAmount > 0 ? toPercent(BigInt(minted), BigInt(roundAmount)) : 0;
+  
+  if (roundLabel) roundLabel.innerHTML = `<b>${minted}</b> / ${roundAmount}`;
+  if (roundBar) roundBar.style.width = `${roundPct}%`;
+  if (roundTitle) roundTitle.textContent = `Round ${currentEpoch} Minted`;
 }
 
 function renderLiveStatus() {
